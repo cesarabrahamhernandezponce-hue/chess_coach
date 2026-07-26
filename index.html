@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Entrenador de Ajedrez</title>
+  <meta name="description" content="Entrena ajedrez contra Stockfish con clasificación de jugadas en tiempo real. 100% local.">
+  <meta name="theme-color" content="#14151a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ajedrez">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>♞ Entrenador de Ajedrez</h1>
+    <div class="topbar-right">
+      <div class="topbar-status" id="status">Cargando motores…</div>
+      <button class="icon-btn" id="btnPuzzles" title="Puzzles de tus errores" aria-label="Puzzles de tus errores">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.44 7.85c-.05.32.06.65.29.88l1.56 1.57c.47.47.71 1.08.71 1.7s-.24 1.23-.71 1.7l-1.61 1.61a.98.98 0 0 1-.83.28c-.47-.07-.8-.48-.97-.93a2.5 2.5 0 1 0-3.21 3.22c.44.16.85.5.92.96a.98.98 0 0 1-.27.84l-1.61 1.61c-.47.47-1.09.7-1.71.7s-1.23-.23-1.7-.7l-1.57-1.57a1.03 1.03 0 0 0-.88-.29c-.49.08-.84.5-1.02.97a2.5 2.5 0 1 1-3.24-3.24c.46-.18.9-.53.97-1.02a1.03 1.03 0 0 0-.29-.88l-1.57-1.57A2.4 2.4 0 0 1 2 12c0-.62.24-1.23.71-1.7L4.23 8.77c.24-.24.58-.35.92-.3.51.08.87.53 1.07 1.01a2.5 2.5 0 1 0 3.26-3.26c-.48-.2-.93-.56-1.01-1.07-.05-.34.06-.68.3-.92l1.52-1.52A2.4 2.4 0 0 1 12 2c.62 0 1.23.24 1.7.71l1.57 1.57c.23.23.56.34.88.29.49-.08.84-.5 1.02-.97a2.5 2.5 0 1 1 3.24 3.24c-.47.18-.9.53-.97 1.02z"/></svg>
+      </button>
+      <button class="icon-btn" id="btnProfile" title="Perfil de debilidades por fase" aria-label="Perfil de debilidades por fase">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </button>
+      <button class="icon-btn" id="btnLibrary" title="Biblioteca de partidas" aria-label="Biblioteca de partidas">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      </button>
+      <button class="icon-btn" id="btnSettings" title="Ajustes" aria-label="Ajustes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Barra de evaluación + tablero -->
+    <section class="board-area">
+      <div class="captures" id="capturesTop"></div>
+      <div class="board-row">
+        <div class="evalbar" id="evalbar" title="Evaluación (perspectiva de las blancas)">
+          <div class="evalbar-fill" id="evalFill"></div>
+          <span class="evalbar-text" id="evalText">0.0</span>
+        </div>
+        <div id="board"></div>
+      </div>
+      <div class="captures" id="capturesBottom"></div>
+    </section>
+
+    <!-- Panel derecho -->
+    <aside class="panel">
+      <div class="card opening-card">
+        <div class="card-label">Apertura</div>
+        <div class="opening-name" id="openingName">—</div>
+      </div>
+
+      <div class="card lastclass-card" id="lastClass">
+        <div class="lastclass-icon">♟</div>
+        <div class="lastclass-main">
+          <div class="lastclass-text">Haz tu jugada</div>
+          <div class="lastclass-why hidden" id="lastWhy"></div>
+          <div class="lastclass-line hidden" id="lastLine"></div>
+          <button class="btn retry-btn hidden" id="btnRetry">↩ Intentar de nuevo</button>
+        </div>
+      </div>
+
+      <div class="card puzzle-card hidden" id="puzzlePanel">
+        <div class="card-label">🧩 Puzzles de tus errores</div>
+        <div class="puzzle-counter" id="puzzleCounter">—</div>
+        <div class="puzzle-detail" id="puzzleDetail"></div>
+        <div class="btn-row">
+          <button class="btn" id="btnPzHint">💡 Pista</button>
+          <button class="btn" id="btnPzSolution">👁 Solución</button>
+          <button class="btn primary" id="btnPzNext">⏭ Siguiente</button>
+          <button class="btn" id="btnPzExit">✕ Salir</button>
+        </div>
+      </div>
+
+      <div class="card moves-card">
+        <div class="card-label">Jugadas</div>
+        <div class="review-bar hidden" id="reviewBar">
+          <button class="rev-btn" id="revStart" title="Inicio (Home)">⏮</button>
+          <button class="rev-btn" id="revPrev" title="Anterior (←)">◀</button>
+          <span class="rev-label" id="revLabel">Jugada 0 / 0</span>
+          <button class="rev-btn" id="revNext" title="Siguiente (→)">▶</button>
+          <button class="rev-btn" id="revEnd" title="Final de la línea (End)">⏭</button>
+          <button class="rev-btn rev-promote" id="revPromote" title="Promover esta variante a línea principal (P)">⤴</button>
+          <button class="rev-btn rev-delete" id="revDelete" title="Borrar desde esta jugada (Supr)">🗑</button>
+        </div>
+        <div class="moves-scroll">
+          <div id="moveList" class="moves-flow"></div>
+        </div>
+      </div>
+
+      <div class="card evalgraph-card hidden" id="evalGraphCard">
+        <div class="card-label">Evaluación</div>
+        <div class="evalgraph" id="evalGraph"></div>
+      </div>
+
+      <div class="card controls-card">
+        <div class="toggle-row">
+          <label class="switch">
+            <input type="checkbox" id="arrowToggle">
+            <span>Mostrar mejor jugada tras mover</span>
+          </label>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="btnNew">Nueva partida</button>
+          <button class="btn" id="btnHint">💡 Pista</button>
+          <button class="btn" id="btnResign">Rendirse</button>
+          <button class="btn" id="btnUndo">Deshacer</button>
+          <button class="btn" id="btnRedo">Rehacer</button>
+          <button class="btn" id="btnCopyPgn">Copiar PGN</button>
+          <button class="btn" id="btnFlip">Voltear</button>
+        </div>
+      </div>
+
+      <div class="card summary-card hidden" id="summary"></div>
+    </aside>
+  </main>
+
+  <!-- Modal de nueva partida -->
+  <div class="modal-overlay hidden" id="newGameModal">
+    <div class="modal">
+      <h2>Nueva partida</h2>
+      <div class="field">
+        <label>Juego con:</label>
+        <div class="seg" id="colorSeg">
+          <button data-color="w" class="seg-btn active">♔ Blancas</button>
+          <button data-color="b" class="seg-btn">♚ Negras</button>
+          <button data-color="r" class="seg-btn">🎲 Al azar</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Fuerza del rival: <strong id="eloValue">2000</strong> Elo</label>
+        <input type="range" id="eloRange" min="1320" max="2800" step="20" value="2000">
+        <div class="range-hints"><span>1320</span><span>2800</span></div>
+        <div class="field-hint" id="eloHint"></div>
+      </div>
+      <button class="btn primary big" id="btnStart">Comenzar</button>
+    </div>
+  </div>
+
+  <!-- Modal de ajustes -->
+  <div class="modal-overlay hidden" id="settingsModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Ajustes</h2>
+        <button class="modal-close" id="settingsClose" title="Cerrar">✕</button>
+      </div>
+      <div class="field">
+        <label>Tema del tablero</label>
+        <div class="theme-grid" id="themeGrid"></div>
+      </div>
+      <div class="field">
+        <label class="switch big-switch">
+          <input type="checkbox" id="setCoords">
+          <span>Mostrar coordenadas</span>
+        </label>
+      </div>
+      <div class="field">
+        <label class="switch big-switch">
+          <input type="checkbox" id="setSound">
+          <span>Sonidos</span>
+        </label>
+      </div>
+      <div class="field">
+        <label class="switch big-switch">
+          <input type="checkbox" id="setThreat">
+          <span>Flecha de amenaza del rival</span>
+        </label>
+      </div>
+      <div class="field">
+        <label class="switch big-switch">
+          <input type="checkbox" id="setRepeat">
+          <span>Repetir hasta acertar</span>
+        </label>
+        <div class="field-hint">Deshace tus imprecisiones y errores para que vuelvas a intentar la jugada.</div>
+      </div>
+      <div class="field">
+        <label class="switch big-switch">
+          <input type="checkbox" id="setAdaptive">
+          <span>Elo adaptativo</span>
+        </label>
+        <div class="field-hint">Ajusta la fuerza del rival a tu nivel: sube si ganas, baja si pierdes.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de inicio de puzzles -->
+  <div class="modal-overlay hidden" id="puzzleModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>🧩 Puzzles de tus errores</h2>
+        <button class="modal-close" id="puzzleModalClose" title="Cerrar">✕</button>
+      </div>
+      <div class="puzzle-intro" id="puzzleIntro"></div>
+      <button class="btn primary big" id="btnPzStart">Empezar a entrenar</button>
+    </div>
+  </div>
+
+  <!-- Modal de biblioteca -->
+  <div class="modal-overlay hidden" id="libraryModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Biblioteca de partidas</h2>
+        <button class="modal-close" id="libraryClose" title="Cerrar">✕</button>
+      </div>
+      <div class="library-list" id="libraryList"></div>
+    </div>
+  </div>
+
+  <!-- Modal de perfil de debilidades -->
+  <div class="modal-overlay hidden" id="profileModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Perfil de debilidades</h2>
+        <button class="modal-close" id="profileClose" title="Cerrar">✕</button>
+      </div>
+      <div class="profile-body" id="profileBody"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

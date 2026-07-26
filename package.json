@@ -1,0 +1,17 @@
+{
+  "name": "entrenador-ajedrez",
+  "version": "1.0.0",
+  "description": "Entrenador de ajedrez local: juega contra Stockfish y clasifica tus jugadas en tiempo real.",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 5000",
+    "test": "node tools/test-openings.mjs"
+  },
+  "keywords": ["chess", "ajedrez", "stockfish", "entrenamiento"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "stockfish": "^18.0.8"
+  }
+}
