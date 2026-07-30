@@ -108,6 +108,134 @@ body.puzzle-mode .evalgraph-card,
 body.puzzle-mode .summary-card,
 body.puzzle-mode .controls-card { display: none; }
 
+/* ---- Enseñar aperturas ---- */
+/* En modo lección, oculta todo lo que pertenece a la partida en curso. */
+body.opening-mode .opening-card,
+body.opening-mode .lastclass-card,
+body.opening-mode .moves-card,
+body.opening-mode .evalgraph-card,
+body.opening-mode .summary-card,
+body.opening-mode .puzzle-card,
+body.opening-mode .controls-card,
+body.opening-mode .evalbar,
+body.opening-mode .captures { display: none; }
+
+.trainer-card { border-color: var(--accent); }
+.tr-title { display: flex; flex-direction: column; gap: 1px; margin-bottom: 10px; }
+.tr-course { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
+.tr-line { font-size: 16px; font-weight: 700; line-height: 1.25; }
+
+.tr-bar { height: 5px; border-radius: 3px; background: var(--card-2); overflow: hidden; }
+.tr-bar-fill { height: 100%; background: var(--accent); transition: width 0.3s ease-out; }
+.tr-bar-label { font-size: 11px; color: var(--muted); margin: 4px 0 10px; }
+
+.tr-step { font-size: 15px; font-weight: 600; line-height: 1.35; margin-bottom: 10px; }
+.tr-step.tr-turn { color: var(--accent); }
+.tr-step.tr-ok { color: var(--c-best); }
+.tr-step.tr-bad { color: var(--c-mistake); }
+
+.tr-wrong, .tr-askbox, .tr-lastbox, .tr-altsbox, .tr-donebox {
+  background: var(--card-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;
+}
+.tr-wrong { border-color: var(--c-mistake); }
+.tr-wrong-head { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.tr-wrong-text { font-size: 13.5px; line-height: 1.5; }
+.tr-punish { font-size: 13px; color: var(--c-mistake); margin-top: 6px; }
+.tr-retry { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+
+.tr-askbox { border-color: var(--accent); }
+.tr-ask-q { font-size: 14px; line-height: 1.5; }
+.tr-hint { font-size: 13px; color: var(--accent); margin-top: 8px; line-height: 1.45; }
+
+.tr-last-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.tr-mv { font-size: 15px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.tr-who { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
+.tr-chip {
+  font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+  background: rgba(176, 123, 232, 0.18); color: var(--c-book); border: 1px solid var(--c-book);
+}
+.tr-why { font-size: 13.5px; line-height: 1.55; }
+.tr-plan, .tr-also {
+  font-size: 13px; line-height: 1.5; color: var(--muted);
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
+}
+.tr-why b, .tr-plan b, .tr-also b, .tr-wrong-text b, .tr-ask-q b { color: var(--text); }
+.tr-why u { text-decoration-color: var(--accent); }
+
+.tr-alts-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
+.tr-alts-list { display: flex; flex-direction: column; gap: 6px; }
+.tr-alt {
+  display: flex; gap: 9px; align-items: flex-start; text-align: left; width: 100%;
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; color: var(--muted); font-size: 12.5px; line-height: 1.45;
+  font-family: inherit;
+}
+.tr-alt-go { cursor: pointer; }
+.tr-alt-go:hover { border-color: var(--accent); background: #30354482; }
+.tr-alt-san { font-weight: 800; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tr-alt-body b { color: var(--text); }
+.tr-alt-cta { display: block; color: var(--accent); font-weight: 600; margin-top: 4px; }
+
+.tr-moves { font-size: 14px; line-height: 2; margin-bottom: 10px; }
+.tr-num { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 2px; }
+.tr-tok { display: inline-block; padding: 1px 5px; border-radius: 5px; margin-right: 4px; color: var(--muted); }
+.tr-tok-hidden { letter-spacing: 1px; opacity: 0.4; }
+.tr-tok-played { color: var(--text); cursor: pointer; }
+.tr-tok-played:hover { background: rgba(232, 163, 61, 0.14); }
+.tr-tok-mine.tr-tok-played { font-weight: 700; }
+.tr-tok-focus { background: rgba(232, 163, 61, 0.28); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.tr-donebox { border-color: var(--c-best); }
+.tr-done-note { font-size: 13.5px; line-height: 1.5; margin-bottom: 10px; }
+.tr-keys-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
+.tr-keys { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; }
+.tr-keys li { margin-bottom: 4px; }
+.tr-keys b { color: var(--accent); }
+.tr-done-tip { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.tr-switch { margin-bottom: 4px; }
+
+/* Temario (modal) */
+.modal-wide { width: min(620px, 94vw); max-height: 88vh; overflow-y: auto; }
+.trainer-intro { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin-bottom: 18px; }
+.trainer-intro b { color: var(--text); }
+.trainer-courses { display: flex; flex-direction: column; gap: 18px; }
+.tc-course { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--bg-2); }
+.tc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.tc-title { font-size: 17px; font-weight: 700; }
+.tc-sub { font-size: 12px; color: var(--accent); margin-top: 2px; }
+.tc-count {
+  font-size: 13px; font-weight: 700; color: var(--muted);
+  background: var(--card-2); border: 1px solid var(--line);
+  border-radius: 20px; padding: 3px 10px; white-space: nowrap;
+}
+.tc-intro { font-size: 13px; color: var(--muted); line-height: 1.55; margin: 10px 0; }
+.tc-intro b, .tc-ideas b { color: var(--text); }
+.tc-ideas { margin-bottom: 12px; }
+.tc-ideas summary { font-size: 12.5px; color: var(--accent); cursor: pointer; }
+.tc-ideas ul { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+.tc-ideas li { margin-bottom: 5px; }
+.tc-lines { display: flex; flex-direction: column; gap: 7px; }
+.tc-line {
+  display: flex; align-items: center; gap: 11px; text-align: left; width: 100%;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; cursor: pointer; color: var(--text); font-family: inherit;
+}
+.tc-line:hover { border-color: var(--accent); background: var(--card-2); }
+.tc-mark {
+  flex: 0 0 26px; width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--card-2); border: 1px solid var(--line);
+  font-size: 12px; font-weight: 700; color: var(--muted);
+}
+.tc-done .tc-mark { border-color: var(--c-best); color: var(--c-best); }
+.tc-linebody { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.tc-linetitle { font-size: 14px; font-weight: 600; }
+.tc-lineshort { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.tc-linestate { font-size: 11px; color: var(--muted); opacity: 0.75; }
+.tc-go { color: var(--muted); font-size: 12px; }
+.tc-line:hover .tc-go { color: var(--accent); }
+
 /* Biblioteca */
 .library-list { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; }
 .lib-empty { color: var(--muted); font-size: 14px; text-align: center; padding: 20px 0; }
@@ -439,6 +567,8 @@ body.puzzle-mode .controls-card { display: none; }
 .btn.primary { background: var(--accent); color: #1a1200; border-color: transparent; font-weight: 700; }
 .btn.primary:hover { filter: brightness(1.05); }
 .btn.big { width: 100%; padding: 13px; font-size: 16px; margin-top: 8px; }
+.btn-learn { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.btn-learn:hover { background: var(--accent); color: #1a1200; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .switch { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; }

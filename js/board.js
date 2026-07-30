@@ -170,6 +170,11 @@ export class Board {
     }
   }
 
+  clearLast() {
+    this.lastMove = null;
+    for (const cell of this.cells.values()) cell.classList.remove('last-from', 'last-to');
+  }
+
   highlightLast(from, to) {
     this.lastMove = { from, to };
     for (const cell of this.cells.values()) cell.classList.remove('last-from', 'last-to');

@@ -112,6 +112,32 @@ página sin perderla.
 - **📚 Biblioteca de partidas**: al terminar una partida se archiva sola
   (resultado, precisión, color, Elo del rival, fecha y árbol completo). Desde el
   botón 📚 puedes reabrir cualquier partida en modo revisión o borrarla.
+- **🎓 Enseñar aperturas**: sección de **lecciones guiadas** que te enseñan una
+  apertura jugada a jugada, en español y **sin usar el motor** (la respuesta es
+  inmediata y funciona offline). Se abre con el botón 🎓 o desde el propio modal
+  de inicio. Hay dos cursos:
+  - **El Gambito de Dama** (con blancas): ideas base y **GD Aceptado**, **GD
+    Rechazado**, **Defensa Eslava** y **"Castigo a la codicia"** (cómo refutar
+    a quien se empeña en aguantar el peón con …b5).
+  - **Defensa Eslava** (con negras): cómo **defenderte** del Gambito de Dama —
+    línea principal, **Variante del Cambio** y qué hacer si el rival evita la
+    teoría.
+
+  En cada lección: el rival juega solo y te explica **el porqué** de su jugada;
+  cuando te toca, te hace una **pregunta guía** en vez de darte la respuesta.
+  Si aciertas, te explica la idea; si te equivocas, te dice **qué falla en tu
+  jugada** y, en los errores típicos, te **enseña el castigo en el tablero**
+  antes de devolverte el turno. Además:
+  - **Variantes de respuesta**: tras cada jugada del rival se listan sus
+    alternativas reales (nombre + idea) y puedes **saltar a la lección que las
+    cubre** desde la misma posición.
+  - **Guiarme** (interruptor): la primera vez te muestra la jugada y una flecha;
+    apágalo para repasar **de memoria**.
+  - **💡 Pista** escalonada (idea → qué pieza → flecha) y **👁 Ver jugada**.
+  - Al terminar, un **resumen de las ideas** para recordar y el **progreso**
+    guardado por lección (✓ completada, 🏆 sin ayudas).
+  - Atajos: `H` pista · `V` ver jugada · `R` reiniciar · `→`/`Enter` siguiente
+    lección · `Esc` salir.
 - **🧩 Puzzles de tus errores**: el botón 🧩 recopila de la biblioteca las
   posiciones donde jugaste una imprecisión, error o error grave y te las plantea
   como puzzles —justo **antes** de tu jugada floja, con tu turno—. Los peores
@@ -160,6 +186,8 @@ js/board.js         render e interacción del tablero (CSS Grid + piezas SVG)
 js/engine.js        wrapper UCI de los Web Workers de Stockfish
 js/classifier.js    clasificación de jugadas y precisión
 js/openings.js      libro de aperturas embebido
+js/courses.js       temario de las lecciones de apertura (jugadas + explicaciones)
+js/openingTrainer.js sección "Enseñar aperturas": lecciones guiadas
 js/sounds.js        efectos de sonido sintetizados con WebAudio
 js/settings.js      ajustes (tema de tablero, coordenadas, sonido) en localStorage
 js/library.js       biblioteca de partidas terminadas en localStorage
@@ -169,6 +197,7 @@ js/adaptive.js      Elo adaptativo (estima tu nivel y ajusta al rival)
 manifest.webmanifest, sw.js, icons/  soporte PWA (instalable y offline)
 vendor/             chess.js (ESM), Stockfish 18 lite (WASM) y piezas SVG Cburnett
 tools/test-openings.mjs   test de legalidad del libro de aperturas
+tools/test-courses.mjs    test del temario de lecciones (legalidad e integridad)
 tools/e2e.mjs             prueba end-to-end en navegador (Playwright)
 tools/test-tree.mjs       prueba del árbol de variantes (Playwright)
 ```
@@ -176,7 +205,8 @@ tools/test-tree.mjs       prueba del árbol de variantes (Playwright)
 ## Pruebas
 
 ```bash
-# Verifica que todas las líneas del libro de aperturas sean legales
+# Verifica el libro de aperturas y el temario de las lecciones (legalidad,
+# turnos, errores típicos y saltos entre variantes)
 npm test
 
 # Pruebas end-to-end (requieren Playwright + Chromium y el servidor en :5050)
@@ -191,6 +221,8 @@ node tools/test-profile.mjs      # perfil de debilidades por fase (lógica, sin 
 node tools/test-profile-ui.mjs   # flujo de UI del perfil (Playwright)
 node tools/test-adaptive.mjs     # Elo adaptativo: fórmula, clamp y sugerencia (lógica)
 node tools/test-adaptive-ui.mjs  # Elo adaptativo: preseteo del modal y cambio tras jugar (Playwright)
+node tools/test-courses.mjs      # temario de aperturas: legalidad e integridad (sin navegador)
+node tools/test-trainer-ui.mjs   # lecciones de apertura: flujo completo de UI (Playwright)
 ```
 
 ## Créditos y licencia

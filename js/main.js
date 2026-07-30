@@ -11,6 +11,7 @@ import { renderProfile } from './profile.js';
 import { getMyElo, setMyElo, suggestedRivalElo, updateElo, outcomeScore } from './adaptive.js';
 import { collectPuzzles } from './puzzles.js';
 import { review, reviewQueue, scheduleList, stateFor, intervalLabel } from './srs.js';
+import { OpeningTrainer, renderCourseMenu } from './openingTrainer.js';
 
 const ENGINE_URL = 'vendor/stockfish-18-lite-single.js';
 const ANALYST_MS = 1000;   // tiempo de análisis del motor analista
@@ -106,7 +107,8 @@ class Game {
     this.analyst.setFullStrength();
     this.analyst.setOption('MultiPV', 2); // 2ª mejor línea, para detectar la "jugada única"
     console.log('[app] ambos motores UCI listos');
-    setStatus('Motores listos', false);
+    // Si mientras cargaban te metiste en una lección, no le pises el estado.
+    if (!trainer.active) setStatus('Motores listos', false);
     this.enginesReady = true;
   }
 
@@ -435,6 +437,7 @@ class Game {
     if (!r.bestmove) return;
     // La posición pudo cambiar mientras pensaba: no dibujes una flecha obsoleta.
     if (this.gameOver || this.chess.fen() !== fen || this.chess.turn() !== this.myColor) return;
+    if (this.puzzleMode || trainer.active) return; // el tablero es de otro modo
     board.showArrow(r.bestmove.slice(0, 2), r.bestmove.slice(2, 4), 'threat');
   }
 
@@ -446,7 +449,9 @@ class Game {
     setStatus('Analizando la posición…', true);
     this.bgPromise = this.analyst.analyze({ fen, movetime: ANALYST_MS }).then((r) => {
       const res = { ...r, fen };
-      if (this.bgFen === fen && !this.gameOver && !this.puzzleMode) {
+      // Si entretanto te fuiste a los puzzles o a una lección, no toques la UI:
+      // al volver a la partida se recupera esta promesa.
+      if (this.bgFen === fen && !this.gameOver && !this.puzzleMode && !trainer.active) {
         this.pending = res;
         // Cachea el eval a fuerza completa en el nodo: así navegar de vuelta no lo
         // recalcula a menor profundidad (NAV_EVAL_MS) y la barra/curva no "saltan".
@@ -883,6 +888,12 @@ class Game {
     $('puzzlePanel').classList.add('hidden');
     board.clearArrows();
     board.clearBadges();
+    this.resumeAfterMode();
+  }
+
+  // Vuelve de un modo aparte (puzzles, lecciones de apertura) a la partida:
+  // si había una en curso la restaura, y si no deja el tablero listo.
+  resumeAfterMode({ openNew = true } = {}) {
     if (this.started) {
       this.syncChess(this.current);
       board.setOrientation(this.myColor);
@@ -893,10 +904,11 @@ class Game {
       this.syncChess(this.root);
       board.setOrientation('w');
       board.render(this.chess.board());
+      board.clearLast();
       updateEvalBar(0);
       setStatus('Motores listos', false);
       setLastClass('♟', 'Pulsa Nueva partida para jugar', null);
-      openModal();
+      if (openNew) openModal();
     }
   }
 
@@ -1188,11 +1200,19 @@ function updateEvalBar(cpWhite) {
 // ---- Arranque ----
 let board;
 const game = new Game();
+const trainer = new OpeningTrainer({
+  chess: game.chess,               // comparte la instancia con el tablero
+  board: () => board,
+  setStatus,
+  onExit: () => game.resumeAfterMode({ openNew: false }),
+  onMenu: () => openTrainerMenu(),
+});
 
 function setupBoard() {
   board = new Board($('board'), {
     orientation: 'w',
     movableColor: () => {
+      if (trainer.active) return trainer.movableColor();
       if (game.puzzleMode) {
         return (game.puzzle && !game.puzzleBusy && !game.puzzleSolved) ? game.chess.turn() : null;
       }
@@ -1204,7 +1224,10 @@ function setupBoard() {
       const m = moves.find((x) => x.to === to);
       return !!(m && m.promotion);
     },
-    onMove: (from, to, promo) => (game.puzzleMode ? game.onPuzzleMove(from, to, promo) : game.onMyMove(from, to, promo)),
+    onMove: (from, to, promo) => {
+      if (trainer.active) return trainer.onMove(from, to, promo);
+      return game.puzzleMode ? game.onPuzzleMove(from, to, promo) : game.onMyMove(from, to, promo);
+    },
   });
 }
 
@@ -1232,7 +1255,7 @@ function wireControls() {
     // Cierra ajustes/biblioteca/puzzles con Escape.
     if (e.key === 'Escape') {
       let closed = false;
-      for (const id of ['settingsModal', 'libraryModal', 'puzzleModal', 'profileModal']) {
+      for (const id of ['settingsModal', 'libraryModal', 'puzzleModal', 'profileModal', 'trainerModal']) {
         if (!$(id).classList.contains('hidden')) { $(id).classList.add('hidden'); closed = true; }
       }
       if (closed) return;
@@ -1240,10 +1263,24 @@ function wireControls() {
     const modalOpen = !$('newGameModal').classList.contains('hidden');
     if (modalOpen) {
       if (e.key === 'Enter') { e.preventDefault(); $('btnStart').click(); }
-      else if (e.key === 'Escape' && game.started) closeModal();
+      // Se puede cerrar siempre: si no, el modal de inicio bloquea la barra
+      // superior (aperturas, puzzles, ajustes…) hasta jugar una partida.
+      else if (e.key === 'Escape') closeModal();
       return;
     }
     if (e.target.matches('input, textarea, button')) return;
+    // En una lección de apertura, solo atajos propios.
+    if (trainer.active) {
+      switch (e.key) {
+        case 'h': case 'H': trainer.hint(); break;
+        case 'v': case 'V': trainer.reveal(); break;
+        case 'r': case 'R': trainer.restart(); break;
+        case 'ArrowRight': case 'Enter': e.preventDefault(); trainer.next(); break;
+        case 'Escape': trainer.exit(); break;
+        default: return;
+      }
+      return;
+    }
     // En modo puzzle solo atajos propios; nada de deshacer/nueva partida.
     if (game.puzzleMode) {
       switch (e.key) {
@@ -1280,6 +1317,10 @@ function wireControls() {
     });
   });
   $('eloRange').addEventListener('input', (e) => { $('eloValue').textContent = e.target.value; });
+  // Clic fuera del cuadro: cierra el modal de inicio (no deja la app bloqueada).
+  $('newGameModal').addEventListener('click', (e) => {
+    if (e.target === $('newGameModal')) closeModal();
+  });
   $('btnStart').addEventListener('click', async () => {
     let color = chosenColor;
     if (color === 'r') color = Math.random() < 0.5 ? 'w' : 'b';
@@ -1291,7 +1332,9 @@ function wireControls() {
 }
 
 function openModal() {
-  if (game.puzzleMode) return;
+  // Nunca por encima de otro modo o del temario de aperturas.
+  if (game.puzzleMode || trainer.active) return;
+  if (!$('trainerModal').classList.contains('hidden')) return;
   syncEloModal();
   $('newGameModal').classList.remove('hidden');
 }
@@ -1416,6 +1459,34 @@ function wirePuzzles() {
   $('btnPzExit').addEventListener('click', () => game.exitPuzzles());
 }
 
+// ---- Enseñar aperturas ----
+function openTrainerMenu() {
+  closeModal(); // el modal de nueva partida no debe quedar detrás
+  renderCourseMenu($('trainerCourses'), (courseId, lineId) => {
+    $('trainerModal').classList.add('hidden');
+    closeModal(); // pudo reabrirse al terminar de cargar los motores
+    trainer.start(courseId, lineId);
+  });
+  $('trainerModal').classList.remove('hidden');
+}
+
+function wireTrainer() {
+  const modal = $('trainerModal');
+  const close = () => modal.classList.add('hidden');
+  $('btnTrainer').addEventListener('click', openTrainerMenu);
+  $('btnLearnFromModal').addEventListener('click', openTrainerMenu);
+  $('trainerClose').addEventListener('click', close);
+  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+  $('btnTrHint').addEventListener('click', () => trainer.hint());
+  $('btnTrShow').addEventListener('click', () => trainer.reveal());
+  $('btnTrRestart').addEventListener('click', () => trainer.restart());
+  $('btnTrMenu').addEventListener('click', () => openTrainerMenu());
+  $('btnTrNext').addEventListener('click', () => trainer.next());
+  $('btnTrExit').addEventListener('click', () => trainer.exit());
+  $('trGuided').addEventListener('change', (e) => trainer.setGuided(e.target.checked));
+}
+
 async function main() {
   loadSettings();
   setupBoard();
@@ -1424,6 +1495,7 @@ async function main() {
   wireLibrary();
   wireProfile();
   wirePuzzles();
+  wireTrainer();
 
   try {
     await game.initEngines();
@@ -1468,3 +1540,4 @@ main();
 // Exponer para pruebas automatizadas (Playwright/consola).
 window.__game = game;
 window.__board = () => board;
+window.__trainer = trainer;
