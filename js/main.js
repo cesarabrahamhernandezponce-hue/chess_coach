@@ -12,6 +12,8 @@ import { getMyElo, setMyElo, suggestedRivalElo, updateElo, outcomeScore } from '
 import { collectPuzzles } from './puzzles.js';
 import { review, reviewQueue, scheduleList, stateFor, intervalLabel } from './srs.js';
 import { OpeningTrainer, renderCourseMenu } from './openingTrainer.js';
+import { loadAiConfig, getAiConfig, setAiConfig, isConfigured, refreshFreeModels, chat, SEED_CHAIN } from './ai.js';
+import { SYSTEM_PROMPT, buildReviewPrompt, renderAiHtml, phaseOf, materialLine, hangingPieces } from './aiCoach.js';
 
 const ENGINE_URL = 'vendor/stockfish-18-lite-single.js';
 const ANALYST_MS = 1000;   // tiempo de análisis del motor analista
@@ -55,6 +57,8 @@ class Game {
     this.bgPromise = null;
     this.bgFen = null;
     this.busy = false;
+    this.aiBusy = false;      // hay una consulta al coach IA en vuelo
+    this.aiCtrl = null;       // AbortController de esa consulta
     this.enginesReady = false;
     this.gameOver = false;
     this.resigned = false;
@@ -418,27 +422,46 @@ class Game {
   beginMyTurn() {
     if (this.gameOver) return;
     this.startBackgroundAnalysis();
-    this.maybeShowThreat();
+    // Solo automática si lo pides en Ajustes; por defecto la amenaza se consulta
+    // con el botón ⚠ (tecla T), para que no te resuelva la posición sin pedirlo.
+    if (getSettings().threatAuto) this.maybeShowThreat();
   }
 
   // Dibuja la amenaza principal del rival: su mejor jugada si le tocara mover
   // ahora (búsqueda sobre la posición con el turno invertido, "null move").
-  async maybeShowThreat() {
-    if (!getSettings().showThreat) return;
+  // `manual` = la pediste tú, así que avisa por qué no se puede en vez de callar.
+  async maybeShowThreat(manual = false) {
     const fen = this.chess.fen();
-    if (this.chess.turn() !== this.myColor) return;
+    if (this.chess.turn() !== this.myColor) {
+      if (manual) setLastClass('⚠', 'La amenaza se consulta en tu turno', null);
+      return;
+    }
+    if (this.gameOver) {
+      if (manual) setLastClass('⚠', 'La partida ya terminó', null);
+      return;
+    }
     // Si estoy en jaque la amenaza ya está sobre el tablero: no aporta señalarla.
-    if (this.chess.inCheck()) return;
+    if (this.chess.inCheck()) {
+      if (manual) setLastClass('⚠', 'Estás en jaque: la amenaza ya está sobre el tablero', null);
+      return;
+    }
+    if (manual) setStatus('Buscando la amenaza del rival…', true);
     // Espera al análisis de mi mejor jugada para no cortarlo (el motor es único).
     try { await this.bgPromise; } catch (_) {}
     if (this.gameOver || this.busy) return;
     if (this.chess.fen() !== fen || this.chess.turn() !== this.myColor) return;
     const r = await this.analyst.analyze({ fen: nullMoveFen(fen), movetime: ANALYST_MS });
+    if (manual) setStatus('Tu turno', false);
     if (!r.bestmove) return;
     // La posición pudo cambiar mientras pensaba: no dibujes una flecha obsoleta.
     if (this.gameOver || this.chess.fen() !== fen || this.chess.turn() !== this.myColor) return;
     if (this.puzzleMode || trainer.active) return; // el tablero es de otro modo
     board.showArrow(r.bestmove.slice(0, 2), r.bestmove.slice(2, 4), 'threat');
+    if (manual) {
+      // Nombra la amenaza: la flecha sola no dice qué gana el rival con ella.
+      const san = sanOf(nullMoveFen(fen), r.bestmove);
+      setLastClass('⚠', san ? `Amenaza del rival: ${san}` : 'Amenaza señalada en rojo', null);
+    }
   }
 
   startBackgroundAnalysis() {
@@ -689,6 +712,108 @@ class Game {
       lineEl.classList.remove('hidden');
     }
     setStatus('Tu turno', false);
+  }
+
+  // ---- Coach IA ----
+  // Análisis profundo bajo demanda: le da al modelo los hechos ya verificados por
+  // Stockfish (evaluación, mejor jugada, línea principal, plan del rival, jugadas
+  // legales) y le pide que los explique. El modelo no calcula nada por su cuenta.
+  async aiExplain() {
+    if (this.puzzleMode || trainer.active) return;
+    if (this.aiBusy) { this.aiAbort(); return; }
+
+    // La explicación es de la última jugada TUYA de la línea que estás viendo.
+    let myNode = this.current;
+    while (myNode && !(myNode.isMine && myNode.move)) myNode = myNode.parent;
+    if (!myNode || !myNode.parent) {
+      showAi('<p>Juega una jugada primero: el profesor analiza tu última jugada y la respuesta del rival.</p>', null);
+      return;
+    }
+    // Respuesta del rival: la que está en la línea que miras, o la principal.
+    let rivalNode = null;
+    if (this.current !== myNode && this.current.parent === myNode) rivalNode = this.current;
+    else if (myNode.children.length && !myNode.children[0].isMine) rivalNode = myNode.children[0];
+
+    if (!isConfigured()) {
+      showAi(
+        '<p>Falta la clave de OpenRouter. Ábrela en <b>⚙ Ajustes → 🧠 Coach IA</b>: ' +
+        'se crea gratis en openrouter.ai/keys y esta app solo usa modelos <b>:free</b>.</p>', null);
+      return;
+    }
+
+    this.aiBusy = true;
+    this.aiCtrl = new AbortController();
+    $('btnAi').textContent = '⏹ Cancelar';
+    showAi('<p class="ai-wait">Reuniendo los datos del motor…</p>', null);
+
+    try {
+      const preFen = myNode.parent.fen;
+      const postFen = myNode.fen;
+
+      // 1) La posición antes de tu jugada: mejor jugada y evaluación (tu POV).
+      const pre = await this.analyst.analyze({ fen: preFen, movetime: ANALYST_MS });
+      if (this.aiCtrl.signal.aborted) return;
+      // 2) La posición tras tu jugada: qué hará el rival y cuánto vale ya (su POV).
+      const post = await this.analyst.analyze({ fen: postFen, movetime: ANALYST_MS });
+      if (this.aiCtrl.signal.aborted) return;
+
+      let rivalPlan = null, threatSan = null, myBestNow = null;
+      if (rivalNode) {
+        // 3) Tras la respuesta real del rival: tu mejor plan y su amenaza actual.
+        const now = await this.analyst.analyze({ fen: rivalNode.fen, movetime: ANALYST_MS });
+        if (this.aiCtrl.signal.aborted) return;
+        myBestNow = bestLineSan(rivalNode.fen, now.pv, now.bestmove);
+        const nullFen = nullMoveFen(rivalNode.fen);
+        const thr = await this.analyst.analyze({ fen: nullFen, movetime: ANALYST_MS });
+        if (this.aiCtrl.signal.aborted) return;
+        threatSan = sanOf(nullFen, thr.bestmove);
+      }
+      rivalPlan = bestLineSan(postFen, post.pv, post.bestmove);
+
+      const ctx = {
+        myColor: this.myColor,
+        opening: this.lastOpening || null,
+        phase: phaseOf(postFen),
+        material: materialLine(rivalNode ? rivalNode.fen : postFen, this.myColor),
+        history: this.pathTo(this.current).filter((n) => n.move).slice(-10).map((n) => n.move.san),
+        myMoveSan: myNode.move.san,
+        categoryLabel: myNode.category ? myNode.category.label : 'sin clasificar',
+        cpl: myNode.cpl || 0,
+        evalBefore: pre.scoreCp,
+        evalAfter: -post.scoreCp,
+        bestSan: sanOf(preFen, pre.bestmove),
+        bestLine: bestLineSan(preFen, pre.pv, pre.bestmove),
+        legalSans: new Chess(preFen).moves(),
+        rivalMoveSan: rivalNode ? rivalNode.move.san : null,
+        rivalPlan,
+        threatSan,
+        myBestNow,
+        hanging: hangingPieces(rivalNode ? rivalNode.fen : postFen),
+        localWhy: myNode.why || null,
+      };
+
+      showAi('<p class="ai-wait">Pensando…</p>', null);
+      const { text, model } = await chat({
+        system: SYSTEM_PROMPT,
+        user: buildReviewPrompt(ctx),
+        signal: this.aiCtrl.signal,
+        onModel: (m) => showAi(`<p class="ai-wait">Pensando con <code>${m}</code>…</p>`, null),
+      });
+      if (this.aiCtrl.signal.aborted) return;
+      showAi(renderAiHtml(text), model);
+    } catch (e) {
+      if (e.name === 'AbortError') { showAi('<p>Análisis cancelado.</p>', null); return; }
+      console.error('error del coach IA:', e);
+      showAi(`<p class="ai-error">No se pudo analizar: ${String(e.message || e)}</p>`, null);
+    } finally {
+      this.aiBusy = false;
+      this.aiCtrl = null;
+      $('btnAi').textContent = '🧠 Explícame';
+    }
+  }
+
+  aiAbort() {
+    if (this.aiCtrl) this.aiCtrl.abort();
   }
 
   async retry() {
@@ -1171,6 +1296,26 @@ function nullMoveFen(fen) {
   return p.join(' ');
 }
 
+// Muestra la tarjeta del coach IA. `html` ya viene escapado por renderAiHtml().
+function showAi(html, model) {
+  const card = $('aiCard');
+  card.classList.remove('hidden');
+  $('aiBody').innerHTML = html;
+  $('aiModel').textContent = model ? `Modelo: ${model}` : '';
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Notación algebraica de una jugada UCI en una posición dada; null si es ilegal.
+function sanOf(fen, uci) {
+  if (!uci) return null;
+  try {
+    const m = new Chess(fen).move({
+      from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.slice(4) || undefined,
+    });
+    return m ? m.san : null;
+  } catch (_) { return null; }
+}
+
 function bestLineSan(preFen, pv, bestmove) {
   const tmp = new Chess(preFen);
   const sans = [];
@@ -1234,6 +1379,9 @@ function setupBoard() {
 function wireControls() {
   $('btnResign').addEventListener('click', () => game.resign());
   $('btnHint').addEventListener('click', () => game.hint());
+  $('btnThreat').addEventListener('click', () => game.maybeShowThreat(true));
+  $('btnAi').addEventListener('click', () => game.aiExplain());
+  $('aiClose').addEventListener('click', () => $('aiCard').classList.add('hidden'));
   $('btnUndo').addEventListener('click', () => game.undo());
   $('btnRedo').addEventListener('click', () => game.redo());
   $('btnRetry').addEventListener('click', () => game.retry());
@@ -1268,7 +1416,10 @@ function wireControls() {
       else if (e.key === 'Escape') closeModal();
       return;
     }
-    if (e.target.matches('input, textarea, button')) return;
+    // Al escribir en un campo, nada de atajos. En un botón recién pulsado sí:
+    // solo se reservan Enter y Espacio, que son los que lo activan.
+    if (e.target.matches('input, textarea, select')) return;
+    if (e.target.matches('button') && (e.key === 'Enter' || e.key === ' ')) return;
     // En una lección de apertura, solo atajos propios.
     if (trainer.active) {
       switch (e.key) {
@@ -1298,6 +1449,8 @@ function wireControls() {
       case 'f': case 'F': board.flip(); break;
       case 'a': case 'A': $('arrowToggle').click(); break;
       case 'h': case 'H': game.hint(); break;
+      case 't': case 'T': game.maybeShowThreat(true); break;
+      case 'e': case 'E': game.aiExplain(); break;
       case 'p': case 'P': game.promote(); break;
       case 'Delete': case 'Backspace': e.preventDefault(); game.deleteFromHere(); break;
       case 'ArrowLeft': e.preventDefault(); game.navPrev(); break;
@@ -1375,22 +1528,75 @@ function wireSettings() {
   }
   $('setCoords').checked = cfg.coords;
   $('setSound').checked = cfg.sound;
-  $('setThreat').checked = cfg.showThreat;
+  $('setThreat').checked = cfg.threatAuto;
   $('setRepeat').checked = cfg.repeatUntilGood;
   $('setAdaptive').checked = cfg.adaptiveElo;
   $('setCoords').addEventListener('change', (e) => setSetting('coords', e.target.checked));
   $('setSound').addEventListener('change', (e) => setSetting('sound', e.target.checked));
   $('setThreat').addEventListener('change', (e) => {
-    setSetting('showThreat', e.target.checked);
+    setSetting('threatAuto', e.target.checked);
     if (!e.target.checked) board.clearArrows();
   });
   $('setRepeat').addEventListener('change', (e) => setSetting('repeatUntilGood', e.target.checked));
   $('setAdaptive').addEventListener('change', (e) => setSetting('adaptiveElo', e.target.checked));
 
+  wireAiSettings();
+
   $('btnSettings').addEventListener('click', () => $('settingsModal').classList.remove('hidden'));
   $('settingsClose').addEventListener('click', () => $('settingsModal').classList.add('hidden'));
   $('settingsModal').addEventListener('click', (e) => {
     if (e.target === $('settingsModal')) $('settingsModal').classList.add('hidden');
+  });
+}
+
+// Ajustes del coach IA: clave, elección de modelo y refresco de la lista de
+// modelos gratuitos (OpenRouter los rota, así que conviene poder repescarlos).
+function wireAiSettings() {
+  const ai = loadAiConfig();
+  const keyIn = $('setAiKey');
+  const sel = $('setAiModel');
+  const status = $('aiStatus');
+
+  keyIn.value = ai.apiKey || '';
+  keyIn.addEventListener('change', (e) => {
+    setAiConfig({ apiKey: e.target.value.trim() });
+    status.textContent = e.target.value.trim() ? 'Clave guardada en este navegador.' : 'Clave borrada.';
+  });
+
+  const fillModels = () => {
+    const cfg = getAiConfig();
+    const ids = [...new Set([...SEED_CHAIN, ...cfg.freeModels.map((m) => m.id)])];
+    sel.innerHTML = '<option value="auto">Automático (prueba varios hasta que uno responda)</option>' +
+      ids.map((id) => `<option value="${id}">${id}</option>`).join('');
+    sel.value = cfg.model && ids.includes(cfg.model) ? cfg.model : 'auto';
+  };
+  fillModels();
+  sel.addEventListener('change', (e) => setAiConfig({ model: e.target.value }));
+
+  $('btnAiRefresh').addEventListener('click', async () => {
+    status.textContent = 'Consultando OpenRouter…';
+    try {
+      const free = await refreshFreeModels();
+      fillModels();
+      status.textContent = `${free.length} modelos gratuitos disponibles ahora mismo.`;
+    } catch (e) {
+      status.textContent = `No se pudo actualizar: ${e.message}`;
+    }
+  });
+
+  $('btnAiTest').addEventListener('click', async () => {
+    if (!isConfigured()) { status.textContent = 'Pega primero la clave de OpenRouter.'; return; }
+    status.textContent = 'Probando…';
+    try {
+      const { model } = await chat({
+        system: 'Responde con una sola palabra.',
+        user: 'Di: listo',
+        onModel: (m) => { status.textContent = `Probando ${m}…`; },
+      });
+      status.textContent = `✓ Conexión correcta usando ${model}.`;
+    } catch (e) {
+      status.textContent = `✗ ${e.message}`;
+    }
   });
 }
 

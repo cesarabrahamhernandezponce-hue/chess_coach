@@ -1,6 +1,6 @@
 // Service worker: app shell offline. Precachea el núcleo (incluido el motor
 // WASM ~7 MB) para que la app funcione sin conexión tras la primera carga.
-const CACHE = 'entrenador-ajedrez-v7';
+const CACHE = 'entrenador-ajedrez-v8';
 
 const CORE = [
   './',
@@ -13,6 +13,8 @@ const CORE = [
   'js/engine.js',
   'js/classifier.js',
   'js/coach.js',
+  'js/ai.js',
+  'js/aiCoach.js',
   'js/openings.js',
   'js/sounds.js',
   'js/settings.js',

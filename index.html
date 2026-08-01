@@ -69,6 +69,15 @@
         </div>
       </div>
 
+      <div class="card ai-card hidden" id="aiCard">
+        <div class="card-label">
+          <span>🧠 Análisis del profesor</span>
+          <button class="ai-close" id="aiClose" title="Cerrar">✕</button>
+        </div>
+        <div class="ai-body" id="aiBody"></div>
+        <div class="ai-model" id="aiModel"></div>
+      </div>
+
       <div class="card puzzle-card hidden" id="puzzlePanel">
         <div class="card-label">🧩 Puzzles de tus errores</div>
         <div class="puzzle-counter" id="puzzleCounter">—</div>
@@ -137,7 +146,9 @@
         </div>
         <div class="btn-row">
           <button class="btn primary" id="btnNew">Nueva partida</button>
+          <button class="btn btn-ai" id="btnAi">🧠 Explícame</button>
           <button class="btn" id="btnHint">💡 Pista</button>
+          <button class="btn" id="btnThreat">⚠ Amenaza</button>
           <button class="btn" id="btnResign">Rendirse</button>
           <button class="btn" id="btnUndo">Deshacer</button>
           <button class="btn" id="btnRedo">Rehacer</button>
@@ -200,8 +211,9 @@
       <div class="field">
         <label class="switch big-switch">
           <input type="checkbox" id="setThreat">
-          <span>Flecha de amenaza del rival</span>
+          <span>Flecha de amenaza automática</span>
         </label>
+        <div class="field-hint">Apagada, la amenaza del rival solo aparece cuando pulsas <b>⚠ Amenaza</b> (tecla <b>T</b>).</div>
       </div>
       <div class="field">
         <label class="switch big-switch">
@@ -216,6 +228,27 @@
           <span>Elo adaptativo</span>
         </label>
         <div class="field-hint">Ajusta la fuerza del rival a tu nivel: sube si ganas, baja si pierdes.</div>
+      </div>
+
+      <div class="field ai-settings">
+        <label>🧠 Coach IA (OpenRouter)</label>
+        <div class="field-hint">
+          Explicaciones profundas de tu jugada y la del rival, bajo demanda. Usa modelos
+          <b>gratuitos</b> de OpenRouter. Crea una clave en
+          <span class="ai-url">openrouter.ai/keys</span> y pégala aquí.
+        </div>
+        <input type="password" id="setAiKey" class="text-input" placeholder="sk-or-v1-…" autocomplete="off" spellcheck="false">
+        <div class="field-hint ai-warn">
+          ⚠ La clave se guarda en este navegador y solo viaja a openrouter.ai. No publiques
+          la app en internet con la clave puesta: sería legible por cualquiera.
+        </div>
+        <label class="ai-sublabel">Modelo</label>
+        <select id="setAiModel" class="text-input"></select>
+        <div class="btn-row">
+          <button class="btn" id="btnAiRefresh">↻ Actualizar modelos gratis</button>
+          <button class="btn" id="btnAiTest">✓ Probar conexión</button>
+        </div>
+        <div class="field-hint" id="aiStatus"></div>
       </div>
     </div>
   </div>

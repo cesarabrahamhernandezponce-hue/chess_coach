@@ -1,6 +1,9 @@
 # Entrenador de Ajedrez
 
 Aplicación web de ajedrez que corre **100% en local** (sin backend, sin APIs de pago).
+La única excepción es el **coach con IA** (🧠 Explícame), opcional y bajo demanda:
+usa modelos **gratuitos** de OpenRouter y necesita una clave gratis y conexión.
+Sin configurarlo, la app funciona entera y offline como siempre.
 Juegas contra Stockfish y la app **clasifica cada una de tus jugadas en tiempo real**
 —jugada de libro, mejor jugada, excelente, buena, imprecisión, error y error grave—
 al estilo Chess.com / Lichess.
@@ -82,7 +85,8 @@ página sin perderla.
   botón que te devuelve a tu turno anterior para probar otra (la fallida queda
   guardada como variante).
 - **Atajos de teclado** (escritorio): `N` nueva partida · `U` deshacer ·
-  `Y` rehacer · `F` voltear · `A` alternar flecha · `H` pista · `←`/`→` navegar ·
+  `Y` rehacer · `F` voltear · `A` alternar flecha · `H` pista · `T` amenaza ·
+  `E` explicar con IA · `←`/`→` navegar ·
   `Inicio`/`Fin` ir al principio/final de la línea · `P` promover variante ·
   `Supr` borrar desde la jugada actual · `Enter` comenzar (en el modal).
 - **Piezas SVG** del set **Cburnett** (el de Lichess), vendorizado en
@@ -97,10 +101,38 @@ página sin perderla.
   haz clic en cualquier punto para saltar a esa jugada.
 - **💡 Pista** (`H`): dibuja la flecha de una buena jugada del motor con su idea,
   bajo demanda y solo en tu turno (no delata la mejor jugada antes de que lo pidas).
-- **Flecha de amenaza**: al empezar tu turno, una flecha **roja punteada** señala
-  la principal amenaza del rival (su mejor jugada si le tocara mover ahora). Se
-  calcula tras analizar tu posición para no restar profundidad a la pista/eval, y
-  no aparece si estás en jaque. Se puede apagar en Ajustes.
+- **⚠ Amenaza** (`T`): **bajo demanda**. Dibuja una flecha **roja punteada** con la
+  principal amenaza del rival (su mejor jugada si le tocara mover ahora) y la
+  nombra en el panel ("Amenaza del rival: Nxe5"). Ya **no aparece sola**: te
+  resolvía media posición sin pedirlo. Si prefieres el comportamiento anterior,
+  enciende *Flecha de amenaza automática* en Ajustes. No se calcula si estás en
+  jaque (la amenaza ya está sobre el tablero).
+- **🧠 Explícame** (`E`): el **coach con IA**. Análisis profundo y en español de tu
+  última jugada **y de la respuesta del rival**, bajo demanda (no gasta cuota ni
+  añade latencia mientras juegas). Devuelve cinco apartados: *Tu jugada*, *Por qué
+  es buena / falla*, *Lo que era mejor*, *La jugada del rival* y *Para recordar*.
+
+  **La IA no calcula ajedrez.** Antes de preguntar, la app corre Stockfish sobre
+  cuatro posiciones y le pasa hechos ya verificados —evaluación antes y después,
+  mejor jugada, línea principal, plan del rival, amenaza actual, material colgado
+  (con SEE) y la lista de jugadas legales—. El modelo solo los **explica**, y el
+  prompt le prohíbe citar jugadas que no estén en esa lista. Sin esa correa
+  cualquier LLM se inventa variantes ilegales.
+
+  Usa **modelos gratuitos de OpenRouter** (`:free`). Configúralo en **⚙ Ajustes →
+  🧠 Coach IA**: crea una clave gratis en `openrouter.ai/keys` y pégala. Como
+  OpenRouter **rota sus modelos gratis** (un id que hoy responde mañana da 404),
+  la app no depende de uno fijo: baja por una cadena de reserva, y si se le acaba
+  pide a la API la lista de `:free` que existen **en ese momento** y reintenta.
+  Recuerda el último que funcionó para empezar por él. El botón *Actualizar
+  modelos gratis* hace lo mismo a mano y *Probar conexión* valida la clave.
+
+  > La clave se guarda en `localStorage` de este navegador y solo viaja a
+  > openrouter.ai. **No publiques la app en internet con la clave puesta**: en una
+  > app sin backend sería legible por cualquiera desde la consola.
+
+  Es la única función que necesita internet; el resto sigue siendo 100 % local.
+
 - **Repetir hasta acertar** (opcional, en Ajustes): cuando lo activas, si juegas
   una imprecisión, error o error grave la app **deshace tu jugada** y te devuelve
   a tu turno para que pruebes otra —el rival no responde hasta que juegas algo
@@ -185,6 +217,9 @@ js/main.js          orquestación y estado (árbol de variantes)
 js/board.js         render e interacción del tablero (CSS Grid + piezas SVG)
 js/engine.js        wrapper UCI de los Web Workers de Stockfish
 js/classifier.js    clasificación de jugadas y precisión
+js/coach.js         explicación local del "porqué" de cada jugada (sin red)
+js/ai.js            cliente de OpenRouter: cadena de modelos :free y refresco en vivo
+js/aiCoach.js       prompt del coach IA (hechos del motor) y render de la respuesta
 js/openings.js      libro de aperturas embebido
 js/courses.js       temario de las lecciones de apertura (jugadas + explicaciones)
 js/openingTrainer.js sección "Enseñar aperturas": lecciones guiadas
@@ -213,7 +248,9 @@ npm test
 python3 -m http.server 5050 &
 node tools/e2e.mjs        # motores, clasificación y libro
 node tools/test-tree.mjs # árbol de variantes: ramas, promover, borrar, persistencia
-node tools/test-threat.mjs # flecha de amenaza: aparición, punta roja y toggle
+node tools/test-threat.mjs # flecha de amenaza: bajo demanda (botón y tecla T) y modo automático
+node tools/test-ai.mjs           # coach IA: prompt, escapado y fallback de modelos (sin red)
+node tools/test-ai-ui.mjs        # coach IA: flujo de UI con la red simulada (Playwright)
 node tools/test-puzzles.mjs      # recolección de puzzles a partir de tus errores (sin navegador)
 node tools/test-puzzles-ui.mjs   # flujo de UI de los puzzles (Playwright)
 node tools/test-repeat.mjs       # modo "repetir hasta acertar" (Playwright)

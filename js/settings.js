@@ -12,7 +12,11 @@ export const BOARD_THEMES = {
   gris:    { label: 'Gris',    light: '#d2d2d2', dark: '#7d7d7d' },
 };
 
-const DEFAULTS = { boardTheme: 'clasico', coords: true, sound: true, showThreat: true, repeatUntilGood: false, adaptiveElo: true };
+// `threatAuto` sustituye al antiguo `showThreat`: la flecha de amenaza ya no se
+// dibuja sola al empezar tu turno (te daba masticado el plan del rival), sino
+// cuando la pides con el botón ⚠ o la tecla T. Quien la prefiera automática
+// puede volver a activarla aquí.
+const DEFAULTS = { boardTheme: 'clasico', coords: true, sound: true, threatAuto: false, repeatUntilGood: false, adaptiveElo: true };
 
 let cfg = { ...DEFAULTS };
 

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "python3 -m http.server 5000",
-    "test": "node tools/test-openings.mjs && node tools/test-courses.mjs"
+    "test": "node tools/test-openings.mjs && node tools/test-courses.mjs && node tools/test-ai.mjs"
   },
   "keywords": ["chess", "ajedrez", "stockfish", "entrenamiento"],
   "author": "",
