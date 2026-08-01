@@ -71,7 +71,20 @@ body {
 body.no-coords .coord { display: none; }
 
 /* Cabecera de modales */
-.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+/* Fija la cabecera al hacer scroll: en un modal largo (Ajustes) el ✕ se perdía
+   arriba y no había forma de cerrarlo sin volver a subir del todo. */
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  /* `sticky` se ancla al borde del CONTENIDO, o sea ya por dentro del padding
+     de 26px del modal; con top:0 quedaba una franja transparente arriba por la
+     que asomaba el contenido al desplazarse. El top negativo la sube hasta el
+     borde del cuadro, y los márgenes negativos + padding propio hacen que la
+     banda opaca llegue a los lados. */
+  position: sticky; top: -26px; z-index: 2;
+  background: var(--card);
+  margin: -26px -26px 18px; padding: 26px 26px 12px;
+  border-bottom: 1px solid var(--line);
+}
 .modal-head h2 { margin: 0; }
 .modal-close {
   background: none; border: none; color: var(--muted); font-size: 18px;
@@ -196,7 +209,10 @@ body.opening-mode .captures { display: none; }
 .tr-switch { margin-bottom: 4px; }
 
 /* Temario (modal) */
-.modal-wide { width: min(620px, 94vw); max-height: 88vh; overflow-y: auto; }
+/* Doble clase a propósito: `.modal` se declara más abajo con la misma
+   especificidad y le ganaba el ancho, así que el temario salía a 400px en vez
+   de a 620px. El scroll y el alto máximo los pone `.modal`. */
+.modal.modal-wide { width: min(620px, 100%); }
 .trainer-intro { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin-bottom: 18px; }
 .trainer-intro b { color: var(--text); }
 .trainer-courses { display: flex; flex-direction: column; gap: 18px; }
@@ -611,10 +627,15 @@ body.opening-mode .captures { display: none; }
   backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
   z-index: 1000;
+  padding: 16px; /* que el cuadro no pegue con los bordes de la pantalla */
 }
+/* Todo modal scrollea por dentro: Ajustes creció y no cabía entero en pantalla,
+   y con el centrado por flex el contenido que se sale queda inalcanzable.
+   `overscroll-behavior` evita que al llegar al final arrastre la página. */
 .modal {
   background: var(--card); border: 1px solid var(--line);
-  border-radius: 16px; padding: 26px; width: min(400px, 92vw);
+  border-radius: 16px; padding: 26px; width: min(400px, 100%);
+  max-height: 100%; overflow-y: auto; overscroll-behavior: contain;
 }
 .modal h2 { margin: 0 0 18px; }
 .field { margin-bottom: 20px; }
