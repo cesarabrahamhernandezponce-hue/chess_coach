@@ -636,6 +636,21 @@ body.opening-mode .captures { display: none; }
   background: var(--card); border: 1px solid var(--line);
   border-radius: 16px; padding: 26px; width: min(400px, 100%);
   max-height: 100%; overflow-y: auto; overscroll-behavior: contain;
+  /* Barra visible y con sitio propio: sin ella no se nota que el cuadro
+     desplaza y parece que abajo no hay nada más. Se usan las propiedades
+     estándar (Chrome 121+, Firefox, Safari 18.2+) con el carril de un color
+     real —con `transparent` la barra queda casi invisible sobre el fondo
+     oscuro— y ancho `auto`, que es más fácil de agarrar que `thin`.
+     OJO: en cuanto se declara `scrollbar-color`, Chrome ignora las reglas
+     `::-webkit-scrollbar`; las de abajo son solo el respaldo para motores
+     antiguos, no se pueden combinar con las de arriba. */
+  scrollbar-color: var(--muted) var(--bg-2);
+}
+.modal::-webkit-scrollbar { width: 12px; }
+.modal::-webkit-scrollbar-track { background: var(--bg-2); border-radius: 10px; }
+.modal::-webkit-scrollbar-thumb {
+  background: var(--muted); border-radius: 10px;
+  border: 3px solid var(--bg-2); /* deja aire a los lados del pulgar */
 }
 .modal h2 { margin: 0 0 18px; }
 .field { margin-bottom: 20px; }

@@ -1741,6 +1741,18 @@ async function main() {
 
 // Registra el service worker (PWA offline). No bloquea el arranque.
 if ('serviceWorker' in navigator) {
+  // Cuando entra un service worker nuevo, los ficheros de ESTA carga ya salieron
+  // del anterior, así que la página sigue mostrando la versión vieja hasta que
+  // vuelvas a recargar. Recargamos una vez al tomar el control para evitarlo.
+  // `hadController` distingue una actualización de la primera instalación (ahí
+  // no hay nada viejo que refrescar y recargar sería gratuito).
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW no registrado:', e));
   });
