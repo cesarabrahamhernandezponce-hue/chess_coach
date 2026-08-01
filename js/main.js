@@ -1558,9 +1558,14 @@ function wireAiSettings() {
   const status = $('aiStatus');
 
   keyIn.value = ai.apiKey || '';
-  keyIn.addEventListener('change', (e) => {
-    setAiConfig({ apiKey: e.target.value.trim() });
-    status.textContent = e.target.value.trim() ? 'Clave guardada en este navegador.' : 'Clave borrada.';
+  // `input` y no `change`: con `change` la clave solo se guardaba al salir del
+  // campo, así que pegarla y cerrar el modal con Escape la perdía sin avisar.
+  keyIn.addEventListener('input', (e) => {
+    const v = e.target.value.trim();
+    setAiConfig({ apiKey: v });
+    if (!v) status.textContent = 'Clave borrada.';
+    else if (v.startsWith('sk-or-')) status.textContent = 'Clave guardada. Pulsa “Probar conexión”.';
+    else status.textContent = '⚠ Una clave de OpenRouter empieza por “sk-or-v1-”. ¿Es de otro proveedor?';
   });
 
   const fillModels = () => {
